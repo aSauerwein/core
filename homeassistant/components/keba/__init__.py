@@ -96,6 +96,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Load components
     for platform in PLATFORMS:
+        if platform == Platform.NOTIFY:
+            # no async_setup_entry support for notify component
+            # hass.async_create_task(
+            #     discovery.async_load_platform(hass, platform, DOMAIN, {}, config)
+            # )
+            continue
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, platform)
         )
@@ -113,7 +119,7 @@ class KebaHandler(KebaKeContact):
         """Initialize charging station connection."""
         super().__init__(host, self.hass_callback)
 
-        self._update_listeners = []
+        self._update_listeners: list = []
         self._hass = hass
         self.rfid = rfid
         self.device_name = "keba"  # correct device name will be set in setup()
