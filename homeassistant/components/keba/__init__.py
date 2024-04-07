@@ -6,11 +6,10 @@ import logging
 from keba_kecontact.connection import KebaKeContact
 import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.typing import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,13 +55,15 @@ _SERVICE_MAP = {
 }
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Check connectivity and version of KEBA charging station."""
-    host = config[DOMAIN][CONF_HOST]
-    rfid = config[DOMAIN][CONF_RFID]
-    refresh_interval = config[DOMAIN][CONF_FS_INTERVAL]
+    config = entry.data
+    host = config[CONF_HOST]
+    rfid = config[CONF_RFID]
+    refresh_interval = config[CONF_FS_INTERVAL]
     keba = KebaHandler(hass, host, rfid, refresh_interval)
-    hass.data[DOMAIN] = keba
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = keba
 
     # Wait for KebaHandler setup complete (initial values loaded)
     if not await keba.setup():
@@ -70,10 +71,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         return False
 
     # Set failsafe mode at start up of Home Assistant
-    failsafe = config[DOMAIN][CONF_FS]
-    timeout = config[DOMAIN][CONF_FS_TIMEOUT] if failsafe else 0
-    fallback = config[DOMAIN][CONF_FS_FALLBACK] if failsafe else 0
-    persist = config[DOMAIN][CONF_FS_PERSIST] if failsafe else 0
+    failsafe = config[CONF_FS]
+    timeout = config[CONF_FS_TIMEOUT] if failsafe else 0
+    fallback = config[CONF_FS_FALLBACK] if failsafe else 0
+    persist = config[CONF_FS_PERSIST] if failsafe else 0
     try:
         hass.loop.create_task(keba.set_failsafe(timeout, fallback, persist))
     except ValueError as ex:
@@ -96,7 +97,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Load components
     for platform in PLATFORMS:
         hass.async_create_task(
-            discovery.async_load_platform(hass, platform, DOMAIN, {}, config)
+            hass.config_entries.async_forward_entry_setup(entry, platform)
         )
 
     # Start periodic polling of charging station data
@@ -108,7 +109,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 class KebaHandler(KebaKeContact):
     """Representation of a KEBA charging station connection."""
 
-    def __init__(self, hass, host, rfid, refresh_interval):
+    def __init__(self, hass: HomeAssistant, host, rfid, refresh_interval) -> None:
         """Initialize charging station connection."""
         super().__init__(host, self.hass_callback)
 

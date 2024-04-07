@@ -1,4 +1,19 @@
 {
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "host": "[%key:common::config_flow::data::host%]",
+          "rfid": "RFID",
+          "failsafe": "Failsafe",
+          "failsafe_timeout": "Failsafe Timeout",
+          "failsafe_fallback": "Failsafe Fallback",
+          "failsafe_persist": "Failsafe Persist",
+          "refresh_interval": "Failsafe Interval"
+        }
+      }
+    }
+  },
   "services": {
     "request_data": {
       "name": "Request data",
